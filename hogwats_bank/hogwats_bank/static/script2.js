@@ -252,7 +252,7 @@ function loadBalance() {
         "Your Current Balance: ₹" +
         data.balance +
         " | Loan Taken: ₹" +
-        data.loan_amount;
+        data.loan;
 
       document.getElementById("accountNumber").innerText = data.account_number;
     })

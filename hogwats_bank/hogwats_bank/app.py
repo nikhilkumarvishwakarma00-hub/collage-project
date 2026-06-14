@@ -237,6 +237,47 @@ def feedback_stats():
     except Exception as e:
         return jsonify({"avg_rating": 0, "total_feedback": 0, "error": str(e)}), 500
 
+# ================= APPLY LOAN =================
+@app.route("/apply_loan", methods=["POST"])
+def apply_loan():
+    try:
+        if "user_email" not in session:
+            return jsonify({"error": "Login first"}), 401
+
+        cur = get_cursor()
+        data = request.json
+        amount = int(data.get("amount", 0))
+        email = session["user_email"]
+
+        if amount < 5000 or amount > 50000:
+            return jsonify({"error": "Loan amount must be between ₹5,000 and ₹50,000"}), 400
+
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS loans (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255),
+                loan_amount INT NOT NULL,
+                status VARCHAR(50) DEFAULT 'Approved',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            """
+        )
+
+        cur.execute("UPDATE users SET balance = balance + %s WHERE email = %s", (amount, email))
+        cur.execute("INSERT INTO loans (email, loan_amount) VALUES (%s, %s)", (email, amount))
+
+        txn_id = "TXN" + str(random.randint(100000000, 999999999))
+        cur.execute("INSERT INTO transactions (transaction_id, email, type, amount) VALUES (%s, %s, %s, %s)", (txn_id, email, "Loan", amount))
+
+        conn.commit()
+
+        return jsonify({"success": True, "message": f"Loan of ₹{amount} approved and credited to your account."})
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+
 # ================= RUN =================
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5001, debug=True)
